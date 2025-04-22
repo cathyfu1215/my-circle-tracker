@@ -8,11 +8,13 @@ import {
   Switch,
   Alert,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useTaskStore, Task } from '../store/taskStore';
 import TaskForm from '../components/TaskForm';
 import { useAuth } from '../features/auth/hooks/useAuth';
+import { useFirestoreSyncContext } from '../features/sync/FirestoreSyncProvider';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation';
@@ -22,11 +24,13 @@ type SettingsScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Set
 
 const SettingsScreen = () => {
   const navigation = useNavigation<SettingsScreenNavigationProp>();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const { isLoading, isSynced, syncNow } = useFirestoreSyncContext();
   
   // Local state
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingTask, setEditingTask] = useState<Partial<Task> | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
   
   // Get tasks from store
   const { tasks, addTask, updateTask, deleteTask, reorderTasks } = useTaskStore();
@@ -77,6 +81,19 @@ const SettingsScreen = () => {
         }
       ]
     );
+  };
+
+  // Handle manual sync
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      await syncNow();
+      Alert.alert('Sync Complete', 'Your data has been synced successfully.');
+    } catch (error) {
+      Alert.alert('Sync Failed', 'There was a problem syncing your data. Please try again later.');
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   // Handle logout
@@ -136,8 +153,42 @@ const SettingsScreen = () => {
           )}
         </View>
         
+        {user && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Data Sync</Text>
+            <View style={styles.syncStatusContainer}>
+              <Text style={styles.syncStatusLabel}>Sync Status:</Text>
+              <Text style={[
+                styles.syncStatus, 
+                { color: isSynced ? THEME_COLORS.success : THEME_COLORS.warning }
+              ]}>
+                {isSynced ? 'Synced' : 'Not Synced'}
+              </Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.syncButton}
+              onPress={handleSync}
+              disabled={isSyncing || isLoading}
+            >
+              {(isSyncing || isLoading) ? (
+                <ActivityIndicator color={THEME_COLORS.white} size="small" />
+              ) : (
+                <Text style={styles.syncButtonText}>Sync Now</Text>
+              )}
+            </TouchableOpacity>
+            <Text style={styles.syncInfo}>
+              Last synced data will be restored if you sign in on another device.
+            </Text>
+          </View>
+        )}
+        
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
+          {user && (
+            <View style={styles.accountInfo}>
+              <Text style={styles.accountEmail}>{user.email}</Text>
+            </View>
+          )}
           <TouchableOpacity 
             style={styles.logoutButton}
             onPress={handleLogout}
@@ -292,6 +343,47 @@ const styles = StyleSheet.create({
     color: THEME_COLORS.text,
     marginBottom: 20,
     textAlign: 'center',
+  },
+  syncStatusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  syncStatusLabel: {
+    fontSize: 16,
+    color: THEME_COLORS.text,
+    marginRight: 10,
+  },
+  syncStatus: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  syncButton: {
+    backgroundColor: THEME_COLORS.primary,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  syncButtonText: {
+    color: THEME_COLORS.white,
+    fontWeight: 'bold',
+  },
+  syncInfo: {
+    fontSize: 14,
+    color: THEME_COLORS.textLight,
+    textAlign: 'center',
+    marginBottom: 15,
+  },
+  accountInfo: {
+    backgroundColor: THEME_COLORS.white,
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 15,
+  },
+  accountEmail: {
+    fontSize: 16,
+    color: THEME_COLORS.text,
   },
 });
 

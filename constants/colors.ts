@@ -49,4 +49,5 @@ export const THEME_COLORS = {
   border: '#DDDDDD',
   success: '#4CAF50',
   error: '#F44336',
+  warning: '#FFA726',
 }; 
