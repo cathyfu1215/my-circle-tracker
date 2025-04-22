@@ -1,5 +1,5 @@
 import React, { createContext, useEffect, useState, ReactNode } from 'react';
-import { User } from 'firebase/auth';
+import { User, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../../services/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -26,35 +26,88 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// Storage key for persisting user data
+const USER_STORAGE_KEY = '@circle_tracker:user';
+
+interface StoredUserData {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  lastLoginAt: number;
+}
+
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Check for stored user on mount
+  // Helper function to store user data
+  const storeUserData = async (firebaseUser: User | null) => {
+    try {
+      if (firebaseUser) {
+        // Store minimal user data - avoid circular references
+        const userData: StoredUserData = {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName,
+          lastLoginAt: Date.now()
+        };
+        await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userData));
+      } else {
+        await AsyncStorage.removeItem(USER_STORAGE_KEY);
+      }
+    } catch (error) {
+      console.error('Error storing user data:', error);
+    }
+  };
+
+  // Load initial user state
   useEffect(() => {
-    const checkUser = async () => {
+    const loadUserData = async () => {
       try {
-        // Check if user is already logged in
-        const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+        setLoading(true);
+        
+        // First, try to load user from AsyncStorage for a quick start
+        const storedUserJson = await AsyncStorage.getItem(USER_STORAGE_KEY);
+        let initialUser = null;
+        
+        if (storedUserJson) {
+          try {
+            // This is just for temporary display until Firebase auth state loads
+            console.log('Found stored user data, displaying temporarily');
+          } catch (parseError) {
+            console.error('Error parsing stored user data:', parseError);
+          }
+        }
+        
+        // Now, listen for Firebase auth state changes which will provide the actual user
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+          console.log('Auth state changed:', firebaseUser ? 'User logged in' : 'No user');
+          
+          // Store user data if logged in, remove if logged out
+          await storeUserData(firebaseUser);
+          
           setUser(firebaseUser);
           setLoading(false);
         });
-
+        
         return unsubscribe;
       } catch (error) {
-        console.error('Authentication check failed:', error);
+        console.error('Error in auth state loading:', error);
         setLoading(false);
+        return () => {};
       }
     };
-
-    checkUser();
+    
+    loadUserData();
   }, []);
 
   // Login with email and password
   const login = async (email: string, password: string) => {
     try {
       setLoading(true);
-      await auth.signInWithEmailAndPassword(email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      // The auth state listener will handle updating the user state
+      await storeUserData(userCredential.user);
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
@@ -67,7 +120,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const register = async (email: string, password: string) => {
     try {
       setLoading(true);
-      await auth.createUserWithEmailAndPassword(email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      // The auth state listener will handle updating the user state
+      await storeUserData(userCredential.user);
     } catch (error) {
       console.error('Registration failed:', error);
       throw error;
@@ -80,9 +135,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const logout = async () => {
     try {
       setLoading(true);
-      await auth.signOut();
-      // Clear any local storage if needed
-      await AsyncStorage.removeItem('user_data');
+      await signOut(auth);
+      await AsyncStorage.removeItem(USER_STORAGE_KEY);
     } catch (error) {
       console.error('Logout failed:', error);
       throw error;
