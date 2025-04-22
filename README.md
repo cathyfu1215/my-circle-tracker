@@ -1,57 +1,17 @@
-# 🌈 CircleTracker – Visualize Your Daily Wins
+# CircleTracker
 
-**CircleTracker** is a cross-platform daily task tracker built with React Native (Expo).  
-Track up to 7 customizable tasks daily, visualize your progress with color-coded pie charts, and gamify your productivity!
+CircleTracker is a React Native (Expo) app that helps users track daily tasks visually. Each day is represented as a colorful pie chart with up to 7 slices, where each slice represents a user-defined task. Users can track progress in 4 levels: "nothing", "minimal", "target", and "beyond target".
 
-## 🧠 Features
-- ✅ 1–7 Custom Tasks Per User
-- 🎯 4 Fixed Progress Levels:
-  - `Nothing`, `Minimal`, `Target`, `Beyond Target`
-- 🍥 Daily Task Circle:
-  - Each day is represented by a 7-slice color-coded pie chart.
-- 📅 History View:
-  - Track your weekly, monthly, and yearly progress.
-- 🔐 Email Login Required
-- 💾 Dual Storage:
-  - Saves data both locally and in the cloud for syncing.
+## Features
 
+- 🔄 Track up to 7 daily tasks visually in a circle chart
+- 🎨 Each task has a unique color with varying shades based on completion level
+- 🔐 User authentication with Firebase
+- 💾 Data syncing between local storage and cloud
+- 📱 Cross-platform (iOS & Android)
 
+## Project Structure
 
-
-## 🛠️ Tech Stack
-
-- ⚛️ React Native (with Expo)
-- 🧠 Zustand (for state management)
-- 🔐 Firebase Auth (email login)
-- ☁️ Firebase Firestore (for cloud storage)
-- 💾 AsyncStorage (for local caching/offline access)
-- 🎨 react-native-svg (for drawing circular charts)
-
-## 🏁 Getting Started
-
-### 1. Clone the Repo
-```
-git clone https://github.com/cathyfu1215/my-circle-tracker.git
-cd circle-tracker
-```
-
-2. Install Dependencies
-
-```
-npm install
-```
-or
-```
-yarn install
-```
-
-
-3. Run the App
-```
-npx expo start
-```
-
-## 📦 Project Structure
 ```
 my-circle-tracker/
 ├── assets/                 # Static files (icons, fonts)
@@ -68,39 +28,61 @@ my-circle-tracker/
 ├── store/                  # Global state (Zustand)
 ├── utils/                  # Reusable utilities (e.g. date helpers)
 ├── App.tsx                 # Main app entry
-├── app.json                # Expo config
-└── README.md               # You're reading it!
+└── app.json                # Expo config
 ```
 
-## 🎨 Task Color Palette
-Users choose a unique color per task from a fixed set (e.g. red, green, blue, orange, teal, purple, pink).
+## Technologies Used
 
+- **React Native (Expo)** - Framework for building the app
+- **TypeScript** - For type safety
+- **Firebase** - Authentication and cloud storage
+- **AsyncStorage** - Local data persistence
+- **Zustand** - State management
+- **React Navigation** - Screen navigation
 
-Color intensity reflects progress level:
+## Getting Started
 
-- White = nothing
+### Prerequisites
 
+- Node.js (LTS version)
+- npm or yarn
+- Expo CLI
 
-- Light = minimal
+### Installation
 
+1. Clone the repository
+   ```
+   git clone https://github.com/yourusername/my-circle-tracker.git
+   ```
 
-- Medium = target
+2. Install dependencies
+   ```
+   cd my-circle-tracker
+   npm install
+   ```
 
+3. Set up Firebase:
+   - Create a Firebase project
+   - Enable Email/Password authentication
+   - Create a Firestore database
+   - Update the Firebase configuration in `services/firebase.ts`
 
-- Dark = beyond target
+4. Start the development server
+   ```
+   npm start
+   ```
 
-## 🧭 Roadmap
-- 🔔 Daily reminders
+5. Run on simulator or device using Expo Go app
 
+## Future Enhancements
 
-- 🏆 Streaks & badges
+- Gamification (badges, streaks, achievements)
+- Reminders and notifications
+- Analytics and insights
+- Social sharing
+- Dark mode
 
+## License
 
-- 📊 Advanced insights
-
-
-- 🧠 AI-generated reflections
-
-## 📜 License
-MIT – use it, improve it, or remix it 🔄
+ISC
 
