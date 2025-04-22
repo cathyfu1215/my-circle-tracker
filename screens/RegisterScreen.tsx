@@ -15,26 +15,38 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation';
 import { THEME_COLORS } from '../constants/colors';
 
-type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
+type RegisterScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Register'>;
 
-const LoginScreen = () => {
-  const navigation = useNavigation<LoginScreenNavigationProp>();
-  const { login, loading } = useAuth();
+const RegisterScreen = () => {
+  const navigation = useNavigation<RegisterScreenNavigationProp>();
+  const { register, loading } = useAuth();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   
-  const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please enter both email and password');
+  const handleRegister = async () => {
+    // Basic validation
+    if (!email || !password || !confirmPassword) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+    
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+    
+    if (password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
       return;
     }
     
     try {
-      await login(email, password);
+      await register(email, password);
       // Navigation is handled by the auth state listener in Navigation.tsx
     } catch (error: any) {
-      Alert.alert('Login Failed', error?.message || 'An unknown error occurred');
+      Alert.alert('Registration Failed', error?.message || 'An unknown error occurred');
     }
   };
   
@@ -43,8 +55,8 @@ const LoginScreen = () => {
       <StatusBar style="dark" />
       
       <View style={styles.header}>
-        <Text style={styles.title}>CircleTracker</Text>
-        <Text style={styles.subtitle}>Track your daily progress</Text>
+        <Text style={styles.title}>Create Account</Text>
+        <Text style={styles.subtitle}>Join CircleTracker today</Text>
       </View>
       
       <View style={styles.form}>
@@ -65,23 +77,31 @@ const LoginScreen = () => {
           secureTextEntry
         />
         
+        <TextInput
+          style={styles.input}
+          placeholder="Confirm Password"
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          secureTextEntry
+        />
+        
         <TouchableOpacity
           style={styles.button}
-          onPress={handleLogin}
+          onPress={handleRegister}
           disabled={loading}
         >
           {loading ? (
             <ActivityIndicator color={THEME_COLORS.white} />
           ) : (
-            <Text style={styles.buttonText}>Log In</Text>
+            <Text style={styles.buttonText}>Register</Text>
           )}
         </TouchableOpacity>
       </View>
       
       <View style={styles.footer}>
-        <Text style={styles.footerText}>Don't have an account?</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-          <Text style={styles.link}>Register</Text>
+        <Text style={styles.footerText}>Already have an account?</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+          <Text style={styles.link}>Login</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -147,4 +167,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default LoginScreen; 
+export default RegisterScreen; 

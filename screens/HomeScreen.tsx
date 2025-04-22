@@ -1,52 +1,35 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import TaskCircle from '../components/TaskCircle';
-import { useTaskStore, ProgressLevel } from '../store/taskStore';
+import TaskListItem from '../components/TaskListItem';
+import TaskForm from '../components/TaskForm';
+import { useTaskStore, ProgressLevel, Task } from '../store/taskStore';
 import { THEME_COLORS } from '../constants/colors';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation';
+import { getTodayString } from '../utils/dateUtils';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
-const ProgressButton = ({ 
-  label, 
-  isSelected, 
-  onPress 
-}: { 
-  label: string; 
-  isSelected: boolean; 
-  onPress: () => void 
-}) => (
-  <TouchableOpacity
-    style={[
-      styles.progressButton,
-      isSelected && { backgroundColor: THEME_COLORS.primary }
-    ]}
-    onPress={onPress}
-  >
-    <Text
-      style={[
-        styles.progressButtonText,
-        isSelected && { color: THEME_COLORS.white }
-      ]}
-    >
-      {label}
-    </Text>
-  </TouchableOpacity>
-);
-
 const HomeScreen = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
+  
+  // Local state
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [editingTask, setEditingTask] = useState<Partial<Task> | null>(null);
   
   // Get today's date in ISO format (YYYY-MM-DD)
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getTodayString();
   
   // Access store data
   const { 
     tasks, 
+    addTask,
+    updateTask,
+    deleteTask,
     recordProgress, 
     getDailyProgress 
   } = useTaskStore();
@@ -59,15 +42,42 @@ const HomeScreen = () => {
     setSelectedTaskId(taskId);
   };
   
-  // Handle progress level selection
-  const handleProgressChange = (level: ProgressLevel) => {
-    if (selectedTaskId) {
-      recordProgress(selectedTaskId, level);
-    }
+  // Handle progress level update
+  const handleProgressUpdate = (taskId: string, level: ProgressLevel) => {
+    recordProgress(taskId, level);
   };
   
-  // Find selected task
-  const selectedTask = selectedTaskId ? tasks.find(t => t.id === selectedTaskId) : null;
+  // Open task form modal for adding a new task
+  const handleAddTask = () => {
+    setEditingTask({});
+    setIsModalVisible(true);
+  };
+  
+  // Open task form modal for editing an existing task
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task);
+    setIsModalVisible(true);
+  };
+  
+  // Save task (create or update)
+  const handleSaveTask = (taskData: Omit<Task, 'id'>) => {
+    if (editingTask?.id) {
+      updateTask(editingTask.id, taskData);
+    } else {
+      addTask(taskData);
+    }
+    setIsModalVisible(false);
+    setEditingTask(null);
+  };
+  
+  // Close the modal without saving
+  const handleCancelTask = () => {
+    setIsModalVisible(false);
+    setEditingTask(null);
+  };
+  
+  // Sorted tasks by order
+  const sortedTasks = [...tasks].sort((a, b) => a.order - b.order);
   
   return (
     <View style={styles.container}>
@@ -89,57 +99,65 @@ const HomeScreen = () => {
         />
       </View>
       
-      {tasks.length === 0 && (
+      {tasks.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyStateText}>
             Add tasks to get started tracking your daily progress.
           </Text>
           <TouchableOpacity
             style={styles.addTaskButton}
-            onPress={() => navigation.navigate('Settings')}
+            onPress={handleAddTask}
           >
             <Text style={styles.addTaskButtonText}>Add Tasks</Text>
           </TouchableOpacity>
         </View>
-      )}
-      
-      {selectedTask && (
-        <View style={styles.taskControls}>
-          <Text style={styles.selectedTaskTitle}>{selectedTask.name}</Text>
+      ) : (
+        <View style={styles.tasksContainer}>
+          <Text style={styles.sectionTitle}>Your Tasks</Text>
+          <ScrollView style={styles.tasksList}>
+            {sortedTasks.map((task) => (
+              <TaskListItem
+                key={task.id}
+                task={task}
+                progress={todayProgress[task.id] || ProgressLevel.NOTHING}
+                onProgressUpdate={(level) => handleProgressUpdate(task.id, level)}
+                onEdit={() => handleEditTask(task)}
+              />
+            ))}
+          </ScrollView>
           
-          <View style={styles.progressButtons}>
-            <ProgressButton
-              label="Nothing"
-              isSelected={todayProgress[selectedTaskId] === ProgressLevel.NOTHING}
-              onPress={() => handleProgressChange(ProgressLevel.NOTHING)}
-            />
-            <ProgressButton
-              label="Minimal"
-              isSelected={todayProgress[selectedTaskId] === ProgressLevel.MINIMAL}
-              onPress={() => handleProgressChange(ProgressLevel.MINIMAL)}
-            />
-            <ProgressButton
-              label="Target"
-              isSelected={todayProgress[selectedTaskId] === ProgressLevel.TARGET}
-              onPress={() => handleProgressChange(ProgressLevel.TARGET)}
-            />
-            <ProgressButton
-              label="Beyond"
-              isSelected={todayProgress[selectedTaskId] === ProgressLevel.BEYOND_TARGET}
-              onPress={() => handleProgressChange(ProgressLevel.BEYOND_TARGET)}
-            />
-          </View>
+          {tasks.length < 7 && (
+            <TouchableOpacity 
+              style={styles.addButton}
+              onPress={handleAddTask}
+            >
+              <Text style={styles.addButtonText}>+ Add Task</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
       
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={styles.settingsButton}
-          onPress={() => navigation.navigate('Settings')}
-        >
-          <Text style={styles.settingsButtonText}>Settings</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Task Edit/Add Modal */}
+      <Modal
+        visible={isModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={handleCancelTask}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>
+              {editingTask?.id ? 'Edit Task' : 'Add New Task'}
+            </Text>
+            <TaskForm
+              initialTask={editingTask || {}}
+              onSave={handleSaveTask}
+              onCancel={handleCancelTask}
+              existingTaskCount={tasks.length}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -169,13 +187,14 @@ const styles = StyleSheet.create({
   circleContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 20,
-    marginBottom: 30,
+    marginTop: 10,
+    marginBottom: 20,
   },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
+    marginTop: 20,
   },
   emptyStateText: {
     fontSize: 16,
@@ -193,54 +212,46 @@ const styles = StyleSheet.create({
     color: THEME_COLORS.white,
     fontWeight: 'bold',
   },
-  taskControls: {
-    backgroundColor: THEME_COLORS.white,
-    borderRadius: 10,
-    padding: 20,
-    marginVertical: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+  tasksContainer: {
+    flex: 1,
   },
-  selectedTaskTitle: {
+  sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  progressButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  progressButton: {
-    flex: 1,
-    padding: 10,
-    margin: 5,
-    backgroundColor: THEME_COLORS.white,
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: THEME_COLORS.border,
-    alignItems: 'center',
-  },
-  progressButtonText: {
-    fontSize: 12,
     color: THEME_COLORS.text,
+    marginBottom: 10,
   },
-  footer: {
-    marginTop: 'auto',
-    alignItems: 'center',
+  tasksList: {
+    flex: 1,
   },
-  settingsButton: {
+  addButton: {
     backgroundColor: THEME_COLORS.secondary,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 5,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 15,
   },
-  settingsButtonText: {
+  addButtonText: {
     color: THEME_COLORS.text,
     fontWeight: 'bold',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: THEME_COLORS.background,
+    borderRadius: 10,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: THEME_COLORS.text,
+    marginBottom: 20,
+    textAlign: 'center',
   },
 });
 
